@@ -7,6 +7,8 @@ find_package(catkin REQUIRED COMPONENTS rtt_ros cmake_modules)
 
 # Depend on system install of Gazebo 
 find_package(gazebo REQUIRED)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${GAZEBO_CXX_FLAGS}")
+
 find_package(OROCOS-RTT REQUIRED COMPONENTS rtt-scripting rtt-transport-corba)
 include(${OROCOS-RTT_USE_FILE_PATH}/UseOROCOS-RTT.cmake )
 find_package(orocos_kdl REQUIRED)

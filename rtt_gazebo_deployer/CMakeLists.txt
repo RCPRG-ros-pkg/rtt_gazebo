@@ -11,6 +11,8 @@ include(${OROCOS-RTT_USE_FILE_PATH}/UseOROCOS-RTT.cmake )
 
 find_package(gazebo REQUIRED)
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${GAZEBO_CXX_FLAGS}")
+
 find_package(Eigen REQUIRED)
 find_package(Boost COMPONENTS thread REQUIRED)
 
