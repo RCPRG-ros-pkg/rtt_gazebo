@@ -305,7 +305,7 @@ void GazeboDeployerModelPlugin::loadScripts()
       script_elem = script_elem->GetNextElement("orocosScript");
     }
   }
-
+/*
   // Load lua scripting service
   if(!RTT::plugin::PluginLoader::Instance()->loadService("Lua", deployer)) {
     gzerr << "Could not load lua service." << std::endl;
@@ -352,7 +352,7 @@ void GazeboDeployerModelPlugin::loadScripts()
       script_elem = script_elem->GetNextElement("luaScript");
     }
   }
-
+*/
   RTT::log(RTT::Info) << "Done executing Orocos scripts for gazebo model plugin." << RTT::endlog();
 
   // Restore gravity modes
