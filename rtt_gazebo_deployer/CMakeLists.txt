@@ -47,7 +47,6 @@ target_link_libraries(${PROJECT_NAME}
   ${OROCOS-RTT_RTT-TRANSPORT-CORBA_LIBRARY}
   ${USE_OROCOS_LIBRARIES}
   ${Boost_LIBRARIES}
-  subsystem_deployer
 )
 
 set(CMAKE_BUILD_TYPE Debug)
