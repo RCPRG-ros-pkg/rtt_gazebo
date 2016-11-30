@@ -70,7 +70,7 @@ GZ_REGISTER_MODEL_PLUGIN(GazeboDeployerModelPlugin);
 
 // Static definitions
 RTT::corba::TaskContextServer * GazeboDeployerModelPlugin::taskcontext_server;
-std::map<std::string,OCL::DeploymentComponent*> GazeboDeployerModelPlugin::deployers;
+std::map<std::string,SubsystemDeployer*> GazeboDeployerModelPlugin::deployers;
 boost::mutex GazeboDeployerModelPlugin::deferred_load_mutex;
 
 GazeboDeployerModelPlugin::GazeboDeployerModelPlugin() :
@@ -131,13 +131,15 @@ void GazeboDeployerModelPlugin::loadThread()
   if(deployers.find("gazebo") == deployers.end()) {
     RTT::log(RTT::Info) << "Creating new default deployer named \"gazebo\"" << RTT::endlog();
     // Create the gazebo deployer
-    deployers["gazebo"] = new OCL::DeploymentComponent("gazebo");
-    deployers["gazebo"]->import("rtt_rosnode");
-    deployers["gazebo"]->import("rtt_rosdeployment");
-    static_cast<RTT::TaskContext*>(deployers["gazebo"])->loadService("rosdeployment");
+    deployers["gazebo"] = new SubsystemDeployer("gazebo");
+// TODO: add master service name
+    deployers["gazebo"]->initializeSubsystem("TODO");
+    deployers["gazebo"]->getDc()->import("rtt_rosnode");
+    deployers["gazebo"]->getDc()->import("rtt_rosdeployment");
+    static_cast<RTT::TaskContext*>(deployers["gazebo"]->getDc().get())->loadService("rosdeployment");
 
     // Attach the taskcontext server to this component
-    taskcontext_server = RTT::corba::TaskContextServer::Create(deployers["gazebo"]);
+    taskcontext_server = RTT::corba::TaskContextServer::Create(deployers["gazebo"]->getDc().get());
   }
 
   // Check if this deployer should have a custom name
@@ -150,12 +152,14 @@ void GazeboDeployerModelPlugin::loadThread()
   // Create component deployer if necessary
   if(deployer_name_ != "gazebo" && deployers.find(deployer_name_) == deployers.end()) {
     RTT::log(RTT::Info) << "Creating new deployer named \"" << deployer_name_ << "\"" << RTT::endlog();
-    deployers[deployer_name_] = new OCL::DeploymentComponent(deployer_name_);
-    deployers[deployer_name_]->connectPeers(deployers["gazebo"]);
-    deployers[deployer_name_]->import("rtt_rosnode");
-    deployers[deployer_name_]->import("rtt_rosdeployment");
-    static_cast<RTT::TaskContext*>(deployers[deployer_name_])->loadService("rosdeployment");
-    RTT::corba::TaskContextServer::Create(deployers[deployer_name_]);
+    deployers[deployer_name_] = new SubsystemDeployer(deployer_name_);
+// TODO: add master service name
+    deployers[deployer_name_]->initializeSubsystem("TODO");
+    deployers[deployer_name_]->getDc()->connectPeers(deployers["gazebo"]->getDc().get());
+    deployers[deployer_name_]->getDc()->import("rtt_rosnode");
+    deployers[deployer_name_]->getDc()->import("rtt_rosdeployment");
+    static_cast<RTT::TaskContext*>(deployers[deployer_name_]->getDc().get())->loadService("rosdeployment");
+    RTT::corba::TaskContextServer::Create(deployers[deployer_name_]->getDc().get());
   }
 
   // Error message if the model couldn't be found
@@ -164,7 +168,7 @@ void GazeboDeployerModelPlugin::loadThread()
   }
 
   // Get a pointer to this model's deployer
-  OCL::DeploymentComponent *deployer = deployers[deployer_name_];
+  boost::shared_ptr<OCL::DeploymentComponent > deployer = deployers[deployer_name_]->getDc();
 
   // Check if there is a special gazebo component that should be connected to the world
   if(sdf_->HasElement("component"))
@@ -277,7 +281,7 @@ void GazeboDeployerModelPlugin::loadScripts()
 {
 
   // Get a pointer to this model's deployer
-  OCL::DeploymentComponent *deployer = deployers[deployer_name_];
+  boost::shared_ptr<OCL::DeploymentComponent > deployer = deployers[deployer_name_]->getDc();
 
   // Get the orocos ops script(s) to run in the deployer
   if(sdf_->HasElement("orocosScript"))

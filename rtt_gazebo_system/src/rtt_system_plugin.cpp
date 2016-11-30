@@ -70,12 +70,13 @@ void RTTSystemPlugin::Init()
 
 RTTSystemPlugin::~RTTSystemPlugin()
 {
-  // Stop the Orb thread
+/*  // Stop the Orb thread
   if(!CORBA::is_nil(RTT::corba::TaskContextServer::orb)) {
     RTT::corba::TaskContextServer::ShutdownOrb();
     RTT::corba::TaskContextServer::DestroyOrb();
     RTT::corba::TaskContextServer::CleanupServers();
   }
+*/
 }
 
 void RTTSystemPlugin::updateClock()

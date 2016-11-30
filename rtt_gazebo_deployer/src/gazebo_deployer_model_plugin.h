@@ -18,6 +18,8 @@
 #include <rtt/transports/corba/corba.h>
 #include <rtt/transports/corba/TaskContextServer.hpp>
 
+#include "common_behavior/subsystem_deployer.h"
+
 namespace rtt_gazebo_deployer {
 
   class GazeboDeployerModelPlugin : public gazebo::ModelPlugin
@@ -64,7 +66,7 @@ namespace rtt_gazebo_deployer {
     //! Server for connecting to the deployer over CORBA
     static RTT::corba::TaskContextServer * taskcontext_server;
     //! Map between model names and deployment components
-    static std::map<std::string,OCL::DeploymentComponent*> deployers;
+    static std::map<std::string,SubsystemDeployer*> deployers;
     static boost::mutex deferred_load_mutex;
 
     //! Deferred load in case something blocks

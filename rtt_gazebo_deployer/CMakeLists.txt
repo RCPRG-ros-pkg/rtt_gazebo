@@ -3,7 +3,7 @@ project(rtt_gazebo_deployer)
 
 ## Find catkin macros and  braries
 find_package(catkin REQUIRED COMPONENTS 
-  cmake_modules)
+  cmake_modules common_behavior)
 
 
 find_package(OROCOS-RTT REQUIRED COMPONENTS rtt-scripting rtt-transport-corba)
@@ -47,6 +47,7 @@ target_link_libraries(${PROJECT_NAME}
   ${OROCOS-RTT_RTT-TRANSPORT-CORBA_LIBRARY}
   ${USE_OROCOS_LIBRARIES}
   ${Boost_LIBRARIES}
+  subsystem_deployer
 )
 
 set(CMAKE_BUILD_TYPE Debug)
