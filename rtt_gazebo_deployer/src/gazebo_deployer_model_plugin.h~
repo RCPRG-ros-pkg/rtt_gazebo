@@ -18,7 +18,7 @@
 #include <rtt/transports/corba/corba.h>
 #include <rtt/transports/corba/TaskContextServer.hpp>
 
-#include "subsystem_deployer/subsystem_deployer.h"
+#include "common_behavior/subsystem_deployer.h"
 
 namespace rtt_gazebo_deployer {
 
