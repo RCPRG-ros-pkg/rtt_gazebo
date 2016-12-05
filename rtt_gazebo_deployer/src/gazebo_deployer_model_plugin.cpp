@@ -127,13 +127,16 @@ void GazeboDeployerModelPlugin::loadThread()
 
   gzlog << "Loading RTT Model Plugin..." << std::endl;
 
+  // TODO: read master_package_name from URDF
+  const std::string master_package_name("velma_core_ve_body");
+
   // Create main gazebo deployer if necessary
   if(deployers.find("gazebo") == deployers.end()) {
     RTT::log(RTT::Info) << "Creating new default deployer named \"gazebo\"" << RTT::endlog();
     // Create the gazebo deployer
     deployers["gazebo"] = new SubsystemDeployer("gazebo");
 // TODO: add master service name
-    deployers["gazebo"]->initializeSubsystem("TODO");
+    deployers["gazebo"]->initializeSubsystem(master_package_name);
     deployers["gazebo"]->getDc()->import("rtt_rosnode");
     deployers["gazebo"]->getDc()->import("rtt_rosdeployment");
     static_cast<RTT::TaskContext*>(deployers["gazebo"]->getDc().get())->loadService("rosdeployment");
@@ -149,12 +152,16 @@ void GazeboDeployerModelPlugin::loadThread()
     deployer_name_ = "gazebo";
   }
 
+//        depl.runScripts(scripts);
+//        depl.configure();
+
+
   // Create component deployer if necessary
   if(deployer_name_ != "gazebo" && deployers.find(deployer_name_) == deployers.end()) {
     RTT::log(RTT::Info) << "Creating new deployer named \"" << deployer_name_ << "\"" << RTT::endlog();
     deployers[deployer_name_] = new SubsystemDeployer(deployer_name_);
 // TODO: add master service name
-    deployers[deployer_name_]->initializeSubsystem("TODO");
+    deployers[deployer_name_]->initializeSubsystem(master_package_name);
     deployers[deployer_name_]->getDc()->connectPeers(deployers["gazebo"]->getDc().get());
     deployers[deployer_name_]->getDc()->import("rtt_rosnode");
     deployers[deployer_name_]->getDc()->import("rtt_rosdeployment");
@@ -270,6 +277,8 @@ void GazeboDeployerModelPlugin::loadThread()
   // Load initialization scripts
   this->loadScripts();
 
+  deployers[deployer_name_]->configure();
+
   // Listen to the update event. This event is broadcast every simulation iteration.
   update_connections_.push_back(gazebo::event::Events::ConnectWorldUpdateEnd(
           boost::bind(&GazeboDeployerModelPlugin::gazeboUpdate, this)));
@@ -281,7 +290,10 @@ void GazeboDeployerModelPlugin::loadScripts()
 {
 
   // Get a pointer to this model's deployer
-  boost::shared_ptr<OCL::DeploymentComponent > deployer = deployers[deployer_name_]->getDc();
+  //boost::shared_ptr<OCL::DeploymentComponent > deployer = deployers[deployer_name_]->getDc();
+  SubsystemDeployer* deployer = deployers[deployer_name_];
+
+  std::vector<std::string > scripts;
 
   // Get the orocos ops script(s) to run in the deployer
   if(sdf_->HasElement("orocosScript"))
@@ -293,22 +305,29 @@ void GazeboDeployerModelPlugin::loadScripts()
       if(script_elem->HasElement("filename")) {
         std::string ops_script_file = script_elem->GetElement("filename")->Get<std::string>();
         gzlog << "Running orocos ops script file "<<ops_script_file<<"..." << std::endl;
-        if(!deployer->runScript(ops_script_file)) {
-          gzerr << "Could not run ops script file "<<ops_script_file<<"!" << std::endl;
-          return;
-        }
-      } else if(script_elem->HasElement("inline")) {
-        std::string ops_script = script_elem->GetElement("inline")->Get<std::string>();
-        gzlog << "Running inline orocos ops script:"<< std::endl << ops_script << std::endl;
-        if(!deployer->getProvider<RTT::Scripting>("scripting")->eval(ops_script)) {
-          gzerr << "Could not run inline ops script!" << std::endl;
-          return;
-        }
+        scripts.push_back(ops_script_file);
+//        if(!deployer->runScript(ops_script_file)) {
+//          gzerr << "Could not run ops script file "<<ops_script_file<<"!" << std::endl;
+//          return;
+//        }
       }
+//TODO: inline scripts are not supported
+//      else if(script_elem->HasElement("inline")) {
+//        std::string ops_script = script_elem->GetElement("inline")->Get<std::string>();
+//        gzlog << "Running inline orocos ops script:"<< std::endl << ops_script << std::endl;
+//        if(!deployer->getProvider<RTT::Scripting>("scripting")->eval(ops_script)) {
+//          gzerr << "Could not run inline ops script!" << std::endl;
+//          return;
+//        }
+//      }
 
       script_elem = script_elem->GetNextElement("orocosScript");
     }
   }
+
+
+  deployer->runScripts(scripts);
+
 /*
   // Load lua scripting service
   if(!RTT::plugin::PluginLoader::Instance()->loadService("Lua", deployer)) {
