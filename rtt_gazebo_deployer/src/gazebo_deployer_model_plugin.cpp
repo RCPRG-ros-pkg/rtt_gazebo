@@ -278,6 +278,8 @@ void GazeboDeployerModelPlugin::loadThread()
   this->loadScripts();
 
   deployers[deployer_name_]->configure();
+//  deployers[deployer_name_]->runTaskBrowser();
+
 
   // Listen to the update event. This event is broadcast every simulation iteration.
   update_connections_.push_back(gazebo::event::Events::ConnectWorldUpdateEnd(
