@@ -13,7 +13,7 @@ find_package(gazebo REQUIRED)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${GAZEBO_CXX_FLAGS}")
 
-find_package(Eigen REQUIRED)
+find_package(Eigen3 REQUIRED)
 find_package(Boost COMPONENTS thread REQUIRED)
 
 link_directories(
@@ -25,7 +25,7 @@ include_directories(include
   ${Boost_INCLUDE_DIR}
   ${catkin_INCLUDE_DIRS}
   ${GAZEBO_INCLUDE_DIRS}
-  ${Eigen_INCLUDE_DIR}
+  ${Eigen3_INCLUDE_DIR}
   ${USE_OROCOS_INCLUDE_DIRS}
   )
 
