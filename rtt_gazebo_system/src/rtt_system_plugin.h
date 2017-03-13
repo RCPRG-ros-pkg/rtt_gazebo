@@ -56,6 +56,8 @@ namespace rtt_gazebo_system {
     boost::condition_variable update_cond_;
 
     bool simulate_clock_;
+    double sim_clock_period_;
+    bool update_thread_stop_;
 
     void updateClockLoop();
   };

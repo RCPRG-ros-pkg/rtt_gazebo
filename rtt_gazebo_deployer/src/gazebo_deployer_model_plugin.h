@@ -14,6 +14,8 @@
 #include <ocl/LoggingService.hpp>
 #include <rtt/Logger.hpp>
 
+#include <rtt_ros/rtt_ros.h>
+
 #include <rtt/scripting/Scripting.hpp>
 #include <rtt/transports/corba/corba.h>
 #include <rtt/transports/corba/TaskContextServer.hpp>
@@ -66,8 +68,11 @@ namespace rtt_gazebo_deployer {
     //! Server for connecting to the deployer over CORBA
     static RTT::corba::TaskContextServer * taskcontext_server;
     //! Map between model names and deployment components
+    static OCL::DeploymentComponent* default_deployer;
     static std::map<std::string,SubsystemDeployer*> deployers;
     static boost::mutex deferred_load_mutex;
+    static ros::NodeHandle nh;
+    static ros::ServiceServer ss_enable_sim_;
 
     //! Deferred load in case something blocks
     boost::thread deferred_load_thread_;

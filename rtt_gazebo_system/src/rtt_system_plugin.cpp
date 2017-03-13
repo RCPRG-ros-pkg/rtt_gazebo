@@ -1,5 +1,6 @@
 
 #include <cstdlib>
+#include <unistd.h>
 
 // Boost
 #include <boost/bind.hpp>
@@ -39,9 +40,20 @@ void RTTSystemPlugin::Load(int argc, char **argv)
   // Initialize RTT
   __os_init(argc, argv);
 
+  sim_clock_period_ = 0.0;
+  for (int i = 1; i < argc; ++i) {
+    if (strcmp("--sim_clock_period", argv[i]) == 0) {
+      sim_clock_period_ = std::stod( std::string(argv[i+1]) );
+      break;
+    }
+  }
+
   RTT::Logger::log().setStdStream(std::cerr);
   RTT::Logger::log().mayLogStdOut(true);
   //RTT::Logger::log().setLogLevel(RTT::Logger::Info);
+
+  RTT::log(RTT::Info) << "RTTSystemPlugin sim_clock_period: " << sim_clock_period_ << RTT::endlog();
+
 /*
   // Setup TaskContext server if necessary
   if(CORBA::is_nil(RTT::corba::TaskContextServer::orb)) {
@@ -82,13 +94,16 @@ RTTSystemPlugin::~RTTSystemPlugin()
 void RTTSystemPlugin::updateClock()
 {
   // Wait for previous update thread
-  if(update_thread_.joinable()) {
-    update_thread_.join();
-  }
+//  if(update_thread_.joinable()) {
+//    update_thread_stop_ = true;
+//    update_thread_.join();
+//  }
+//  update_thread_stop_ = false;
 
+  updateClockLoop();
   // Start update thread
-  update_thread_ = boost::thread(
-      boost::bind(&RTTSystemPlugin::updateClockLoop, this));
+//  update_thread_ = boost::thread(
+//      boost::bind(&RTTSystemPlugin::updateClockLoop, this));
 }
 
 void RTTSystemPlugin::updateClockLoop()
@@ -107,7 +122,29 @@ void RTTSystemPlugin::updateClockLoop()
     prof.tic();
 #endif
 
-    rtt_rosclock::update_sim_clock(ros::Time(gz_time.sec, gz_time.nsec));
+//    if (sim_clock_period_ == 0.0) {
+        rtt_rosclock::update_sim_clock(ros::Time(gz_time.sec, gz_time.nsec));
+/*    }
+    else {
+        ros::Time first_update_time = rtt_rosclock::rtt_wall_now();
+        ros::Time time_start = ros::Time(gz_time.sec, gz_time.nsec);
+        ros::Time time_update = time_start;
+        rtt_rosclock::update_sim_clock(time_start);
+
+        double max_step = gazebo::physics::get_world()->GetPhysicsEngine()->GetMaxStepSize();
+
+        while (true) {
+            usleep( int(sim_clock_period_*1000000.0) );
+            ros::Time time_now = rtt_rosclock::rtt_wall_now();
+            time_update = time_update + ros::Duration(sim_clock_period_);
+            if (time_now - first_update_time >= ros::Duration(max_step) || time_update - time_start >= ros::Duration(max_step)) {
+                break;
+            }
+            std::cout << time_update << std::endl;
+            rtt_rosclock::update_sim_clock(time_update);
+        }
+    }
+*/
 
 #ifdef RTT_GAZEBO_DEBUG
     prof.toc();

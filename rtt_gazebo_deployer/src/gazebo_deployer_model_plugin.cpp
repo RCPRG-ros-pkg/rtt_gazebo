@@ -44,6 +44,7 @@
 #include <gazebo/gazebo.hh>
 #include <gazebo/physics/physics.hh>
 #include <gazebo/common/common.hh>
+#include <rtt/internal/GlobalService.hpp>
 
 // Orocos
 #include <rtt/deployment/ComponentLoader.hpp>
@@ -56,8 +57,10 @@
 #include <rtt/transports/corba/TaskContextServer.hpp>
 #include <rtt/plugin/PluginLoader.hpp>
 
-#include <rtt_ros/rtt_ros.h>
 #include <rtt_rosclock/rtt_rosclock.h>
+
+#include <ros/ros.h>
+#include "std_srvs/Empty.h"
 
 // RTT/ROS Simulation Clock Activity
 
@@ -70,8 +73,26 @@ GZ_REGISTER_MODEL_PLUGIN(GazeboDeployerModelPlugin);
 
 // Static definitions
 RTT::corba::TaskContextServer * GazeboDeployerModelPlugin::taskcontext_server;
+OCL::DeploymentComponent * GazeboDeployerModelPlugin::default_deployer = NULL;
 std::map<std::string,SubsystemDeployer*> GazeboDeployerModelPlugin::deployers;
 boost::mutex GazeboDeployerModelPlugin::deferred_load_mutex;
+ros::NodeHandle GazeboDeployerModelPlugin::nh("~");
+ros::ServiceServer GazeboDeployerModelPlugin::ss_enable_sim_;
+
+static bool enable_sim_flag = false;
+
+bool enable_sim(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res) {
+    enable_sim_flag = true;
+    return true;
+}
+
+void singleStep() {
+    if (!enable_sim_flag) {
+        return;
+    }
+
+    gazebo::physics::get_world()->Step(1);
+}
 
 GazeboDeployerModelPlugin::GazeboDeployerModelPlugin() :
   gazebo::ModelPlugin()
@@ -101,7 +122,7 @@ void GazeboDeployerModelPlugin::Load(
 
   // Save the SDF source
   sdf_ = sdf;
-
+/*
   // Perform the rest of the asynchronous loading
   // This is important since RTT scripts need the gazebo clock to tick
   // forward. Make the model weightless while this happens, the actual
@@ -115,6 +136,7 @@ void GazeboDeployerModelPlugin::Load(
         std::pair<gazebo::physics::LinkPtr, bool>(*it, (*it)->GetGravityMode()));
     (*it)->SetGravityMode(false);
   }
+*/
   deferred_load_thread_ = boost::thread(boost::bind(&GazeboDeployerModelPlugin::loadThread, this));
 }
 
@@ -125,49 +147,88 @@ void GazeboDeployerModelPlugin::loadThread()
 
   RTT::Logger::Instance()->in("GazeboDeployerModelPlugin::loadThread");
 
-  gzlog << "Loading RTT Model Plugin..." << std::endl;
+  RTT::log(RTT::Info) << "Loading RTT Model Plugin..." << RTT::endlog();
 
-  // TODO: read master_package_name from URDF
-  const std::string master_package_name("velma_core_ve_body");
+  std::string master_service_name;
+  std::string master_service_subname;
+
+  if(sdf_->HasElement("master_service"))
+  {
+    RTT::log(RTT::Info) << "Loading Gazebo RTT components..." << RTT::endlog();
+
+    sdf::ElementPtr master_service_elem = sdf_->GetElement("master_service");
+
+    if(!master_service_elem->HasElement("name"))
+    {
+      RTT::log(RTT::Error) << "SDF rtt_gazebo plugin <master_service> tag is missing a required field <name>" << RTT::endlog();
+      return;
+    }
+    sdf::ElementPtr master_service_name_elem = master_service_elem->GetElement("name");
+    master_service_name = master_service_name_elem->Get<std::string>();
+
+    if(master_service_elem->HasElement("subname")) {
+      sdf::ElementPtr master_service_subname_elem = master_service_elem->GetElement("subname");
+      master_service_subname = master_service_subname_elem->Get<std::string>();
+    }
+  }
+  else {
+    RTT::log(RTT::Error) << "SDF rtt_gazebo plugin <master_service> tag is missing" << RTT::endlog();
+    return;
+  }
+
 
   // Create main gazebo deployer if necessary
-  if(deployers.find("gazebo") == deployers.end()) {
+  if (default_deployer == NULL) {
+
     RTT::log(RTT::Info) << "Creating new default deployer named \"gazebo\"" << RTT::endlog();
     // Create the gazebo deployer
-    deployers["gazebo"] = new SubsystemDeployer("gazebo");
-// TODO: add master service name
-    deployers["gazebo"]->initializeSubsystem(master_package_name);
-    deployers["gazebo"]->getDc()->import("rtt_rosnode");
-    deployers["gazebo"]->getDc()->import("rtt_rosdeployment");
-    static_cast<RTT::TaskContext*>(deployers["gazebo"]->getDc().get())->loadService("rosdeployment");
+    default_deployer = new OCL::DeploymentComponent("gazebo");
+    default_deployer->import("rtt_rosnode");
+    default_deployer->import("rtt_rosdeployment");
+    static_cast<RTT::TaskContext*>(default_deployer)->loadService("rosdeployment");
 
     // Attach the taskcontext server to this component
-    taskcontext_server = RTT::corba::TaskContextServer::Create(deployers["gazebo"]->getDc().get());
+    taskcontext_server = RTT::corba::TaskContextServer::Create(default_deployer);
   }
 
   // Check if this deployer should have a custom name
   if(sdf_->HasElement("isolated")) {
-    deployer_name_ = parent_model_->GetName()+std::string("__deployer__");
+    deployer_name_ = master_service_name + master_service_subname;//parent_model_->GetName()+std::string("__deployer__");
   } else {
     deployer_name_ = "gazebo";
   }
 
-//        depl.runScripts(scripts);
-//        depl.configure();
+  RTT::log(RTT::Info) << "Deployer name: " << deployer_name_ << RTT::endlog();
+
+
+  if (!RTT::internal::GlobalService::Instance()->hasService("gazebo_rtt_service")) {
+    RTT::Service::shared_ptr gazebo_rtt_service = RTT::internal::GlobalService::Instance()->provides("gazebo_rtt_service");
+
+    gazebo_rtt_service->doc("RTT service for realtime and non-realtime clock measurement.");
+
+    gazebo_rtt_service->addOperation("singleStep", &singleStep).doc(
+        "Execute single step of gazebo simulation.");
+
+    ss_enable_sim_ = nh.advertiseService("enable_sim", &enable_sim);
+  }
+
 
 
   // Create component deployer if necessary
   if(deployer_name_ != "gazebo" && deployers.find(deployer_name_) == deployers.end()) {
+//  if(deployers.find(deployer_name_) == deployers.end()) {
     RTT::log(RTT::Info) << "Creating new deployer named \"" << deployer_name_ << "\"" << RTT::endlog();
     deployers[deployer_name_] = new SubsystemDeployer(deployer_name_);
+
 // TODO: add master service name
-    deployers[deployer_name_]->initializeSubsystem(master_package_name);
-    deployers[deployer_name_]->getDc()->connectPeers(deployers["gazebo"]->getDc().get());
+    deployers[deployer_name_]->initializeSubsystem(master_service_name, master_service_subname);
+    deployers[deployer_name_]->getDc()->connectPeers(default_deployer);
     deployers[deployer_name_]->getDc()->import("rtt_rosnode");
     deployers[deployer_name_]->getDc()->import("rtt_rosdeployment");
     static_cast<RTT::TaskContext*>(deployers[deployer_name_]->getDc().get())->loadService("rosdeployment");
     RTT::corba::TaskContextServer::Create(deployers[deployer_name_]->getDc().get());
   }
+
 
   // Error message if the model couldn't be found
   if (!parent_model_) {
@@ -193,6 +254,7 @@ void GazeboDeployerModelPlugin::loadThread()
          !component_elem->HasElement("type") ||
          !component_elem->HasElement("name"))
       {
+        RTT::log(RTT::Error) << "SDF rtt_gazebo plugin <component> tag is missing a required field!" << RTT::endlog();
         gzerr << "SDF rtt_gazebo plugin <component> tag is missing a required field!" << std::endl;
         return;
       }
@@ -206,12 +268,14 @@ void GazeboDeployerModelPlugin::loadThread()
 
       // Import the package
       if(!rtt_ros::import(model_component_package)) {
+        RTT::log(RTT::Error) << "Could not import rtt_gazebo model component package: \"" << model_component_package << "\"" << RTT::endlog();
         gzerr << "Could not import rtt_gazebo model component package: \"" << model_component_package << "\"" <<std::endl;
         return;
       }
 
       // Load the component
       if(!deployer->loadComponent(model_component_name, model_component_type)) {
+        RTT::log(RTT::Error) << "Could not load rtt_gazebo model component: \"" << model_component_type << "\"" << RTT::endlog();
         gzerr << "Could not load rtt_gazebo model component: \"" << model_component_type << "\"" <<std::endl;
         return;
       }
@@ -220,18 +284,23 @@ void GazeboDeployerModelPlugin::loadThread()
       if(deployer->hasPeer(model_component_name)) {
         new_model_component = deployer->getPeer(model_component_name);
       } else {
+        RTT::log(RTT::Error) << "SDF model plugin specified a special gazebo component to connect to the gazebo update, named \""<<model_component_name<<"\", but there is no peer by that name." << RTT::endlog();
         gzerr << "SDF model plugin specified a special gazebo component to connect to the gazebo update, named \""<<model_component_name<<"\", but there is no peer by that name." <<std::endl;
         return;
       }
 
       // Make sure the component has the required interfaces
       if( new_model_component == NULL ) {
+        RTT::log(RTT::Error) << "RTT model component was not properly created." << RTT::endlog();
         gzerr << "RTT model component was not properly created." << std::endl; return; }
       if( !new_model_component->provides()->hasService("gazebo") ) {
+        RTT::log(RTT::Error) << "RTT model component does not have required \"gazebo\" service." << RTT::endlog();
         gzerr << "RTT model component does not have required \"gazebo\" service." << std::endl; return; }
       if( !new_model_component->provides("gazebo")->hasOperation("configure") ) {
+        RTT::log(RTT::Error) << "RTT model component does not have required \"gazebo.configure\" operation." << RTT::endlog();
         gzerr << "RTT model component does not have required \"gazebo.configure\" operation." << std::endl; return; }
       if( !new_model_component->provides("gazebo")->hasOperation("update") ) {
+        RTT::log(RTT::Error) << "RTT model component does not have required \"gazebo.update\" operation." << RTT::endlog();
         gzerr << "RTT model component does not have required \"gazebo.update\" operation." << std::endl; return; }
 
       // Configure the component with the parent model
@@ -240,11 +309,13 @@ void GazeboDeployerModelPlugin::loadThread()
 
       // Make sure the operation is ready
       if(!gazebo_configure.ready()) {
+        RTT::log(RTT::Error) << "RTT model component's \"gazebo.configure\" operation could not be connected. Check its signature." << RTT::endlog();
         gzerr <<"RTT model component's \"gazebo.configure\" operation could not be connected. Check its signature." << std::endl;
         return;
       }
 
       if(!gazebo_configure(parent_model_)){
+        RTT::log(RTT::Error) << "RTT model component's \"gazebo.configure\" operation returned false." << RTT::endlog();
         gzerr <<"RTT model component's \"gazebo.configure\" operation returned false." << std::endl;
         return;
       }
@@ -253,6 +324,7 @@ void GazeboDeployerModelPlugin::loadThread()
       GazeboUpdateCaller gazebo_update_caller = new_model_component->provides("gazebo")->getOperation("update");
 
       if(!gazebo_update_caller.ready()) {
+        RTT::log(RTT::Error) << "RTT model component's \"gazebo.update\" operation could not be connected. Check its signature." << RTT::endlog();
         gzerr <<"RTT model component's \"gazebo.update\" operation could not be connected. Check its signature." << std::endl;
         return;
       }
@@ -265,6 +337,7 @@ void GazeboDeployerModelPlugin::loadThread()
     }
 
     if(model_components_.empty()) {
+      RTT::log(RTT::Error) << "Could not load any RTT components!" << RTT::endlog();
       gzerr << "Could not load any RTT components!" << std::endl;
       return;
     }
@@ -306,7 +379,9 @@ void GazeboDeployerModelPlugin::loadScripts()
     {
       if(script_elem->HasElement("filename")) {
         std::string ops_script_file = script_elem->GetElement("filename")->Get<std::string>();
-        gzlog << "Running orocos ops script file "<<ops_script_file<<"..." << std::endl;
+        RTT::log(RTT::Info) << "Running orocos ops script file " << ops_script_file << "..." << RTT::endlog();
+
+//        gzlog << "Running orocos ops script file "<<ops_script_file<<"..." << std::endl;
         scripts.push_back(ops_script_file);
 //        if(!deployer->runScript(ops_script_file)) {
 //          gzerr << "Could not run ops script file "<<ops_script_file<<"!" << std::endl;

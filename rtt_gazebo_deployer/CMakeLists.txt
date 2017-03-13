@@ -4,6 +4,7 @@ project(rtt_gazebo_deployer)
 ## Find catkin macros and  braries
 find_package(catkin REQUIRED COMPONENTS 
   rtt_ros
+  std_srvs
   cmake_modules subsystem_deployer common_behavior)
 
 find_package(OROCOS-RTT REQUIRED COMPONENTS rtt-scripting rtt-transport-corba)
