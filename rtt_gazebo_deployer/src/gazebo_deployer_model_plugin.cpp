@@ -402,8 +402,34 @@ void GazeboDeployerModelPlugin::loadScripts()
     }
   }
 
+  std::vector<std::string > subsystem_xmls;
+  if(sdf_->HasElement("subsystem_xml"))
+  {
+    sdf::ElementPtr script_elem = sdf_->GetElement("subsystem_xml");
 
-  deployer->runScripts(scripts);
+    while(script_elem && script_elem->GetName() == "subsystem_xml")
+    {
+      if(script_elem->HasElement("filename")) {
+        std::string ops_script_file = script_elem->GetElement("filename")->Get<std::string>();
+        RTT::log(RTT::Info) << "Running orocos subsystem xml file " << ops_script_file << "..." << RTT::endlog();
+
+        subsystem_xmls.push_back(ops_script_file);
+      }
+
+
+      script_elem = script_elem->GetNextElement("subsystem_xml");
+    }
+  }
+
+  if (!deployer->runXmls(subsystem_xmls)) {
+      RTT::log(RTT::Error) << "Could not load subsystem xml files." << RTT::endlog();
+      return;
+  }
+
+  if (!deployer->runScripts(scripts)) {
+      RTT::log(RTT::Error) << "Could not load script files." << RTT::endlog();
+      return;
+  }
 
 /*
   // Load lua scripting service
