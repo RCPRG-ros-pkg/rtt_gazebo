@@ -5,7 +5,7 @@ project(rtt_gazebo_deployer)
 find_package(catkin REQUIRED COMPONENTS 
   rtt_ros
   std_srvs
-  cmake_modules subsystem_deployer common_behavior)
+  cmake_modules subsystem_deployer subsystem_common)
 
 find_package(OROCOS-RTT REQUIRED COMPONENTS rtt-scripting rtt-transport-corba)
 include(${OROCOS-RTT_USE_FILE_PATH}/UseOROCOS-RTT.cmake )
