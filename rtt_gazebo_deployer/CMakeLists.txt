@@ -54,6 +54,12 @@ target_link_libraries(${PROJECT_NAME}
 #add_dependencies(${PROJECT_NAME} ${catkin_EXPORTED_TARGETS})
 
 orocos_generate_package(
-  CATKIN_DEPENDS rtt_ros subsystem_deployer
+#  CATKIN_DEPENDS rtt_ros subsystem_deployer
+#  CATKIN_DEPENDS subsystem_deployer
 )
+
+install(TARGETS
+  ${PROJECT_NAME}
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  )
 

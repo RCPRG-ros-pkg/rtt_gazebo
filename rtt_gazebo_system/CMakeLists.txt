@@ -63,3 +63,10 @@ orocos_generate_package(
   DEPENDS rtt_ros
 )
 
+install(TARGETS
+  ${PROJECT_NAME}
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  )
+
+catkin_python_setup()
+
