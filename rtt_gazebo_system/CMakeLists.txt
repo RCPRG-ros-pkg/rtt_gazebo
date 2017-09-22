@@ -68,5 +68,3 @@ install(TARGETS
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   )
 
-catkin_python_setup()
-
