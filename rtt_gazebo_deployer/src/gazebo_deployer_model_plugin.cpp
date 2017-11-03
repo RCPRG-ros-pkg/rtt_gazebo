@@ -88,12 +88,26 @@ bool enable_sim(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res) {
     return true;
 }
 
+static boost::thread single_step_thread_;
+
 void singleStep() {
     if (!enable_sim_flag) {
         return;
     }
 
-    gazebo::physics::get_world()->Step(1);
+//    std::cout << "singleStep" << std::endl;
+    single_step_thread_ = boost::thread(boost::bind(&gazebo::physics::World::Step, gazebo::physics::get_world(), 1));
+
+//    gazebo::physics::get_world()->Step(1);
+}
+
+void waitForPreviousStep() {
+    if (!enable_sim_flag) {
+        return;
+    }
+//    std::cout << "waitForPreviousStep" << std::endl;
+
+    single_step_thread_.join();
 }
 
 GazeboDeployerModelPlugin::GazeboDeployerModelPlugin() :
@@ -211,6 +225,9 @@ void GazeboDeployerModelPlugin::loadThread()
     gazebo_rtt_service->doc("RTT service for realtime and non-realtime clock measurement.");
 
     gazebo_rtt_service->addOperation("singleStep", &singleStep).doc(
+        "Execute single step of gazebo simulation.");
+
+    gazebo_rtt_service->addOperation("waitForPreviousStep", &waitForPreviousStep).doc(
         "Execute single step of gazebo simulation.");
 
     ss_enable_sim_ = nh.advertiseService("enable_sim", &enable_sim);
