@@ -96,6 +96,7 @@ void singleStep() {
     }
 
 //    std::cout << "singleStep" << std::endl;
+    single_step_thread_.join();
     single_step_thread_ = boost::thread(boost::bind(&gazebo::physics::World::Step, gazebo::physics::get_world(), 1));
 
 //    gazebo::physics::get_world()->Step(1);
@@ -107,7 +108,7 @@ void waitForPreviousStep() {
     }
 //    std::cout << "waitForPreviousStep" << std::endl;
 
-    single_step_thread_.join();
+//    single_step_thread_.join();
 }
 
 GazeboDeployerModelPlugin::GazeboDeployerModelPlugin() :
