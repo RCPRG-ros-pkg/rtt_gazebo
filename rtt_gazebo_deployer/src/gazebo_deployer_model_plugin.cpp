@@ -123,7 +123,7 @@ GazeboDeployerModelPlugin::~GazeboDeployerModelPlugin()
       it != update_connections_.end();
       ++it)
   {
-    gazebo::event::Events::DisconnectWorldUpdateBegin(*it);
+    gazebo::event::Events::DisconnectWorldUpdateEnd(*it);
   }
 }
 
