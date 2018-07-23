@@ -95,7 +95,7 @@ public:
 
       // Get the RTT and gazebo time for debugging purposes
       rtt_time_ = 1E-9*RTT::os::TimeService::ticks2nsecs(RTT::os::TimeService::Instance()->getTicks());
-      gazebo::common::Time gz_time = model->GetWorld()->GetSimTime();
+      gazebo::common::Time gz_time = model->GetWorld()->SimTime();
       gz_time_ = (double)gz_time.sec + ((double)gz_time.nsec)*1E-9;
 
       // Get the wall time

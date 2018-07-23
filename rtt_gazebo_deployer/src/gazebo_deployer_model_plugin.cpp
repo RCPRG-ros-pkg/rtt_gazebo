@@ -118,13 +118,6 @@ GazeboDeployerModelPlugin::GazeboDeployerModelPlugin() :
 
 GazeboDeployerModelPlugin::~GazeboDeployerModelPlugin()
 {
-  // Disconnect from gazebo events
-  for(std::vector<gazebo::event::ConnectionPtr>::iterator it = update_connections_.begin();
-      it != update_connections_.end();
-      ++it)
-  {
-    gazebo::event::Events::DisconnectWorldUpdateEnd(*it);
-  }
 }
 
 // Overloaded Gazebo entry point
