@@ -34,6 +34,7 @@
 #include "rtt_system_plugin.h"
 
 using namespace rtt_gazebo_system;
+using namespace RTT;
 
 void RTTSystemPlugin::Load(int argc, char **argv)
 {
@@ -50,9 +51,8 @@ void RTTSystemPlugin::Load(int argc, char **argv)
 
   RTT::Logger::log().setStdStream(std::cerr);
   RTT::Logger::log().mayLogStdOut(true);
-  //RTT::Logger::log().setLogLevel(RTT::Logger::Info);
 
-  RTT::log(RTT::Info) << "RTTSystemPlugin sim_clock_period: " << sim_clock_period_ << RTT::endlog();
+  Logger::log() << Logger::Info << "RTTSystemPlugin sim_clock_period: " << sim_clock_period_ << Logger::endl;
 
 /*
   // Setup TaskContext server if necessary
@@ -111,7 +111,7 @@ void RTTSystemPlugin::updateClockLoop()
   {
 
     // Get the simulation time
-    gazebo::common::Time gz_time = gazebo::physics::get_world()->GetSimTime();
+    gazebo::common::Time gz_time = gazebo::physics::get_world()->SimTime();
 
     // Update the clock from the simulation time and execute the SimClockActivities
     // NOTE: all orocos TaskContexts which use a SimClockActivity are updated within this call
@@ -140,7 +140,6 @@ void RTTSystemPlugin::updateClockLoop()
             if (time_now - first_update_time >= ros::Duration(max_step) || time_update - time_start >= ros::Duration(max_step)) {
                 break;
             }
-            std::cout << time_update << std::endl;
             rtt_rosclock::update_sim_clock(time_update);
         }
     }
@@ -150,7 +149,7 @@ void RTTSystemPlugin::updateClockLoop()
     prof.toc();
     if(throttle.ready()) {
       prof.analyze();
-      RTT::log(RTT::Debug) << prof.mean() << " +/- " << prof.stddev() <<" [s] ("<<prof.n()<<") for update_sim_clock()" << RTT::endlog();
+      Logger::log() << Logger::Debug << prof.mean() << " +/- " << prof.stddev() <<" [s] ("<<prof.n()<<") for update_sim_clock()" << Logger::endl;
     }
     static ros::Time last_update_time = rtt_rosclock::rtt_wall_now();
 #endif

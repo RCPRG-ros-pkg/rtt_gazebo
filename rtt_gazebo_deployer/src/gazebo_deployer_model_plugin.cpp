@@ -69,6 +69,7 @@
 #include "gazebo_deployer_model_plugin.h"
 
 using namespace rtt_gazebo_deployer;
+using namespace RTT;
 
 // Register this plugin with the simulator
 GZ_REGISTER_MODEL_PLUGIN(GazeboDeployerModelPlugin);
@@ -95,20 +96,14 @@ void singleStep() {
         return;
     }
 
-//    std::cout << "singleStep" << std::endl;
     single_step_thread_.join();
     single_step_thread_ = boost::thread(boost::bind(&gazebo::physics::World::Step, gazebo::physics::get_world(), 1));
-
-//    gazebo::physics::get_world()->Step(1);
 }
 
 void waitForPreviousStep() {
     if (!enable_sim_flag) {
         return;
     }
-//    std::cout << "waitForPreviousStep" << std::endl;
-
-//    single_step_thread_.join();
 }
 
 GazeboDeployerModelPlugin::GazeboDeployerModelPlugin() :
@@ -118,13 +113,6 @@ GazeboDeployerModelPlugin::GazeboDeployerModelPlugin() :
 
 GazeboDeployerModelPlugin::~GazeboDeployerModelPlugin()
 {
-  // Disconnect from gazebo events
-  for(std::vector<gazebo::event::ConnectionPtr>::iterator it = update_connections_.begin();
-      it != update_connections_.end();
-      ++it)
-  {
-    gazebo::event::Events::DisconnectWorldUpdateEnd(*it);
-  }
 }
 
 // Overloaded Gazebo entry point
@@ -164,20 +152,20 @@ void GazeboDeployerModelPlugin::loadThread()
 
   RTT::Logger::Instance()->in("GazeboDeployerModelPlugin::loadThread");
 
-  RTT::log(RTT::Info) << "Loading RTT Model Plugin..." << RTT::endlog();
+  Logger::log() << Logger::Info << "Loading RTT Model Plugin..." << Logger::endl;
 
   std::string master_service_name;
   std::string master_service_subname;
 
   if(sdf_->HasElement("master_service"))
   {
-    RTT::log(RTT::Info) << "Loading Gazebo RTT components..." << RTT::endlog();
+    Logger::log() << Logger::Info << "Loading Gazebo RTT components..." << Logger::endl;
 
     sdf::ElementPtr master_service_elem = sdf_->GetElement("master_service");
 
     if(!master_service_elem->HasElement("name"))
     {
-      RTT::log(RTT::Error) << "SDF rtt_gazebo plugin <master_service> tag is missing a required field <name>" << RTT::endlog();
+      Logger::log() << Logger::Error << "SDF rtt_gazebo plugin <master_service> tag is missing a required field <name>" << Logger::endl;
       _exit(13);
       return;
     }
@@ -190,7 +178,7 @@ void GazeboDeployerModelPlugin::loadThread()
     }
   }
   else {
-    RTT::log(RTT::Error) << "SDF rtt_gazebo plugin <master_service> tag is missing" << RTT::endlog();
+    Logger::log() << Logger::Error << "SDF rtt_gazebo plugin <master_service> tag is missing" << Logger::endl;
     _exit(12);
     return;
   }
@@ -199,7 +187,7 @@ void GazeboDeployerModelPlugin::loadThread()
   // Create main gazebo deployer if necessary
   if (default_deployer == NULL) {
 
-    RTT::log(RTT::Info) << "Creating new default deployer named \"gazebo\"" << RTT::endlog();
+    Logger::log() << Logger::Info << "Creating new default deployer named \"gazebo\"" << Logger::endl;
     // Create the gazebo deployer
     default_deployer = new OCL::DeploymentComponent("gazebo");
     default_deployer->import("rtt_rosnode");
@@ -217,7 +205,7 @@ void GazeboDeployerModelPlugin::loadThread()
     deployer_name_ = "gazebo";
   }
 
-  RTT::log(RTT::Info) << "Deployer name: " << deployer_name_ << RTT::endlog();
+  Logger::log() << Logger::Info << "Deployer name: " << deployer_name_ << Logger::endl;
 
 
   if (!RTT::internal::GlobalService::Instance()->hasService("gazebo_rtt_service")) {
@@ -239,7 +227,7 @@ void GazeboDeployerModelPlugin::loadThread()
   // Create component deployer if necessary
   if(deployer_name_ != "gazebo" && deployers.find(deployer_name_) == deployers.end()) {
 //  if(deployers.find(deployer_name_) == deployers.end()) {
-    RTT::log(RTT::Info) << "Creating new deployer named \"" << deployer_name_ << "\"" << RTT::endlog();
+    Logger::log() << Logger::Info << "Creating new deployer named \"" << deployer_name_ << "\"" << Logger::endl;
     deployers[deployer_name_] = new SubsystemDeployer(deployer_name_);
 
 // TODO: add master service name
@@ -264,7 +252,7 @@ void GazeboDeployerModelPlugin::loadThread()
   // Check if there is a special gazebo component that should be connected to the world
   if(sdf_->HasElement("component"))
   {
-    RTT::log(RTT::Info) << "Loading Gazebo RTT components..." << RTT::endlog();
+    Logger::log() << Logger::Info << "Loading Gazebo RTT components..." << Logger::endl;
 
     sdf::ElementPtr component_elem = sdf_->GetElement("component");
 
@@ -277,22 +265,22 @@ void GazeboDeployerModelPlugin::loadThread()
          !component_elem->HasElement("type") ||
          !component_elem->HasElement("name"))
       {
-        RTT::log(RTT::Error) << "SDF rtt_gazebo plugin <component> tag is missing a required field!" << RTT::endlog();
+        Logger::log() << Logger::Error << "SDF rtt_gazebo plugin <component> tag is missing a required field!" << Logger::endl;
         gzerr << "SDF rtt_gazebo plugin <component> tag is missing a required field!" << std::endl;
         _exit(10);
         return;
       }
       // Get the component name
-      RTT::log(RTT::Info) << "Getting gazebo RTT component information..." << RTT::endlog();
+      Logger::log() << Logger::Info << "Getting gazebo RTT component information..." << Logger::endl;
       std::string model_component_package = component_elem->GetElement("package")->Get<std::string>();
       std::string model_component_type = component_elem->GetElement("type")->Get<std::string>();
       std::string model_component_name = component_elem->GetElement("name")->Get<std::string>();
 
-      RTT::log(RTT::Info) << "Loading gazebo RTT component package \"" << model_component_package <<"\""<<RTT::endlog();
+      Logger::log() << Logger::Info << "Loading gazebo RTT component package \"" << model_component_package <<"\""<<Logger::endl;
 
       // Import the package
       if(!rtt_ros::import(model_component_package)) {
-        RTT::log(RTT::Error) << "Could not import rtt_gazebo model component package: \"" << model_component_package << "\"" << RTT::endlog();
+        Logger::log() << Logger::Error << "Could not import rtt_gazebo model component package: \"" << model_component_package << "\"" << Logger::endl;
         gzerr << "Could not import rtt_gazebo model component package: \"" << model_component_package << "\"" <<std::endl;
         _exit(9);
         return;
@@ -300,7 +288,7 @@ void GazeboDeployerModelPlugin::loadThread()
 
       // Load the component
       if(!deployer->loadComponent(model_component_name, model_component_type)) {
-        RTT::log(RTT::Error) << "Could not load rtt_gazebo model component: \"" << model_component_type << "\"" << RTT::endlog();
+        Logger::log() << Logger::Error << "Could not load rtt_gazebo model component: \"" << model_component_type << "\"" << Logger::endl;
         gzerr << "Could not load rtt_gazebo model component: \"" << model_component_type << "\"" <<std::endl;
         _exit(8);
         return;
@@ -310,7 +298,7 @@ void GazeboDeployerModelPlugin::loadThread()
       if(deployer->hasPeer(model_component_name)) {
         new_model_component = deployer->getPeer(model_component_name);
       } else {
-        RTT::log(RTT::Error) << "SDF model plugin specified a special gazebo component to connect to the gazebo update, named \""<<model_component_name<<"\", but there is no peer by that name." << RTT::endlog();
+        Logger::log() << Logger::Error << "SDF model plugin specified a special gazebo component to connect to the gazebo update, named \""<<model_component_name<<"\", but there is no peer by that name." << Logger::endl;
         gzerr << "SDF model plugin specified a special gazebo component to connect to the gazebo update, named \""<<model_component_name<<"\", but there is no peer by that name." <<std::endl;
         _exit(7);
         return;
@@ -318,16 +306,16 @@ void GazeboDeployerModelPlugin::loadThread()
 
       // Make sure the component has the required interfaces
       if( new_model_component == NULL ) {
-        RTT::log(RTT::Error) << "RTT model component was not properly created." << RTT::endlog();
+        Logger::log() << Logger::Error << "RTT model component was not properly created." << Logger::endl;
         gzerr << "RTT model component was not properly created." << std::endl; return; }
       if( !new_model_component->provides()->hasService("gazebo") ) {
-        RTT::log(RTT::Error) << "RTT model component does not have required \"gazebo\" service." << RTT::endlog();
+        Logger::log() << Logger::Error << "RTT model component does not have required \"gazebo\" service." << Logger::endl;
         gzerr << "RTT model component does not have required \"gazebo\" service." << std::endl; return; }
       if( !new_model_component->provides("gazebo")->hasOperation("configure") ) {
-        RTT::log(RTT::Error) << "RTT model component does not have required \"gazebo.configure\" operation." << RTT::endlog();
+        Logger::log() << Logger::Error << "RTT model component does not have required \"gazebo.configure\" operation." << Logger::endl;
         gzerr << "RTT model component does not have required \"gazebo.configure\" operation." << std::endl; return; }
       if( !new_model_component->provides("gazebo")->hasOperation("update") ) {
-        RTT::log(RTT::Error) << "RTT model component does not have required \"gazebo.update\" operation." << RTT::endlog();
+        Logger::log() << Logger::Error << "RTT model component does not have required \"gazebo.update\" operation." << Logger::endl;
         gzerr << "RTT model component does not have required \"gazebo.update\" operation." << std::endl; return; }
 
       // Configure the component with the parent model
@@ -336,14 +324,14 @@ void GazeboDeployerModelPlugin::loadThread()
 
       // Make sure the operation is ready
       if(!gazebo_configure.ready()) {
-        RTT::log(RTT::Error) << "RTT model component's \"gazebo.configure\" operation could not be connected. Check its signature." << RTT::endlog();
+        Logger::log() << Logger::Error << "RTT model component's \"gazebo.configure\" operation could not be connected. Check its signature." << Logger::endl;
         gzerr <<"RTT model component's \"gazebo.configure\" operation could not be connected. Check its signature." << std::endl;
         _exit(6);
         return;
       }
 
       if(!gazebo_configure(parent_model_)){
-        RTT::log(RTT::Error) << "RTT model component's \"gazebo.configure\" operation returned false." << RTT::endlog();
+        Logger::log() << Logger::Error << "RTT model component's \"gazebo.configure\" operation returned false." << Logger::endl;
         gzerr <<"RTT model component's \"gazebo.configure\" operation returned false." << std::endl;
         _exit(5);
         return;
@@ -353,7 +341,7 @@ void GazeboDeployerModelPlugin::loadThread()
       GazeboUpdateCaller gazebo_update_caller = new_model_component->provides("gazebo")->getOperation("update");
 
       if(!gazebo_update_caller.ready()) {
-        RTT::log(RTT::Error) << "RTT model component's \"gazebo.update\" operation could not be connected. Check its signature." << RTT::endlog();
+        Logger::log() << Logger::Error << "RTT model component's \"gazebo.update\" operation could not be connected. Check its signature." << Logger::endl;
         gzerr <<"RTT model component's \"gazebo.update\" operation could not be connected. Check its signature." << std::endl;
         _exit(4);
         return;
@@ -367,14 +355,14 @@ void GazeboDeployerModelPlugin::loadThread()
     }
 
     if(model_components_.empty()) {
-      RTT::log(RTT::Error) << "Could not load any RTT components!" << RTT::endlog();
+      Logger::log() << Logger::Error << "Could not load any RTT components!" << Logger::endl;
       gzerr << "Could not load any RTT components!" << std::endl;
       _exit(3);
       return;
     }
 
   } else {
-    RTT::log(RTT::Warning) << "No RTT component defined for Gazebo hooks." << RTT::endlog();
+    RTT::log(RTT::Warning) << "No RTT component defined for Gazebo hooks." << Logger::endl;
     // return;
   }
 
@@ -389,7 +377,7 @@ void GazeboDeployerModelPlugin::loadThread()
   update_connections_.push_back(gazebo::event::Events::ConnectWorldUpdateEnd(
           boost::bind(&GazeboDeployerModelPlugin::gazeboUpdate, this)));
 
-  RTT::log(RTT::Info) << "Gazebo rtt plugin loaded." << RTT::endlog();
+  RTT::log(RTT::Info) << "Gazebo rtt plugin loaded." << Logger::endl;
 }
 
 void GazeboDeployerModelPlugin::loadScripts()
@@ -410,7 +398,7 @@ void GazeboDeployerModelPlugin::loadScripts()
     {
       if(script_elem->HasElement("filename")) {
         std::string ops_script_file = script_elem->GetElement("filename")->Get<std::string>();
-        RTT::log(RTT::Info) << "Running orocos ops script file " << ops_script_file << "..." << RTT::endlog();
+        RTT::log(RTT::Info) << "Running orocos ops script file " << ops_script_file << "..." << Logger::endl;
 
 //        gzlog << "Running orocos ops script file "<<ops_script_file<<"..." << std::endl;
         scripts.push_back(ops_script_file);
@@ -442,7 +430,7 @@ void GazeboDeployerModelPlugin::loadScripts()
     {
       if(script_elem->HasElement("filename")) {
         std::string ops_script_file = script_elem->GetElement("filename")->Get<std::string>();
-        RTT::log(RTT::Info) << "Running orocos subsystem xml file " << ops_script_file << "..." << RTT::endlog();
+        RTT::log(RTT::Info) << "Running orocos subsystem xml file " << ops_script_file << "..." << Logger::endl;
 
         subsystem_xmls.push_back(ops_script_file);
       }
@@ -453,13 +441,13 @@ void GazeboDeployerModelPlugin::loadScripts()
   }
 
   if (!deployer->runXmls(subsystem_xmls)) {
-      RTT::log(RTT::Error) << "Could not load subsystem xml files." << RTT::endlog();
+      Logger::log() << Logger::Error << "Could not load subsystem xml files." << Logger::endl;
       _exit(2);
       return;
   }
 
   if (!deployer->runScripts(scripts)) {
-      RTT::log(RTT::Error) << "Could not load script files." << RTT::endlog();
+      Logger::log() << Logger::Error << "Could not load script files." << Logger::endl;
       _exit(1);
       return;
   }
@@ -512,7 +500,7 @@ void GazeboDeployerModelPlugin::loadScripts()
     }
   }
 */
-  RTT::log(RTT::Info) << "Done executing Orocos scripts for gazebo model plugin." << RTT::endlog();
+  Logger::log() << Logger::Info << "Done executing Orocos scripts for gazebo model plugin." << Logger::endl;
 
   // Restore gravity modes
   for(std::vector<std::pair<gazebo::physics::LinkPtr, bool> >::iterator it = actual_gravity_modes_.begin();
