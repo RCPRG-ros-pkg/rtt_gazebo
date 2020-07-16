@@ -18,6 +18,8 @@
   <build_depend>subsystem_deployer</build_depend>
   <build_depend>subsystem_common</build_depend>
   <build_depend>std_srvs</build_depend>
+  <build_depend>simulation_control_msgs</build_depend>
+  
 
   <run_depend>gazebo</run_depend>
   <run_depend>gazebo_ros</run_depend>
@@ -26,6 +28,7 @@
   <run_depend>subsystem_deployer</run_depend>
   <run_depend>subsystem_common</run_depend>
   <run_depend>std_srvs</run_depend>
+  <run_depend>simulation_control_msgs</run_depend>
 
   <export>
   </export>

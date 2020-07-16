@@ -61,8 +61,10 @@
 
 #include <ros/ros.h>
 #include "std_srvs/Empty.h"
+#include "simulation_control_msgs/EnableSim.h"
 
 #include <unistd.h>
+#include <pthread.h>
 
 // RTT/ROS Simulation Clock Activity
 
@@ -82,28 +84,76 @@ boost::mutex GazeboDeployerModelPlugin::deferred_load_mutex;
 ros::NodeHandle GazeboDeployerModelPlugin::nh("~");
 ros::ServiceServer GazeboDeployerModelPlugin::ss_enable_sim_;
 
-static bool enable_sim_flag = false;
+//static bool enable_sim_flag = false;
+static int max_sim_steps = 0;
+static int sim_step = 0;
+static bool block = false;
 
-bool enable_sim(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res) {
-    enable_sim_flag = true;
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+pthread_cond_t cond_is_running = PTHREAD_COND_INITIALIZER;
+
+bool canMakeStep() {
+    return max_sim_steps < 0 || sim_step < max_sim_steps;
+}
+
+bool enable_sim(simulation_control_msgs::EnableSim::Request &req, simulation_control_msgs::EnableSim::Response &res) {
+    if (req.run_steps == 0) {
+        res.result = -1;
+        return true;
+    }
+    else if (req.block && req.run_steps < 0) {
+        res.result = -2;
+        return true;
+    }
+    pthread_mutex_lock(&mutex);
+    //std::cout << "enable_sim: " << req.run_steps << "  block: " << bool(req.block) << std::endl;
+    max_sim_steps = req.run_steps;
+    sim_step = 0;
+    res.result = 0;
+    pthread_cond_broadcast(&cond);
+    if (req.block) {
+        block = true;
+        int ret = 0;
+        while (sim_step < max_sim_steps && ret == 0) {
+            ret = pthread_cond_wait(&cond_is_running, &mutex);
+        }
+    }
+    else {
+        block = false;
+    }
+    pthread_mutex_unlock(&mutex);
     return true;
 }
 
 static boost::thread single_step_thread_;
 
 void singleStep() {
-    if (!enable_sim_flag) {
-        return;
+    if (single_step_thread_.joinable()) {
+        single_step_thread_.join();
     }
 
-    single_step_thread_.join();
+    pthread_mutex_lock(&mutex);
+    //std::cout << "singleStep: " << sim_step << " / " << max_sim_steps << std::endl;
+    if (block && sim_step >= max_sim_steps) {
+        pthread_cond_broadcast(&cond_is_running);
+    }
+    int ret = 0;
+    while ((!canMakeStep()) && (ret == 0)) {
+        ret = pthread_cond_wait(&cond, &mutex);
+    }
+    ++sim_step;
+    if (sim_step < 0) {
+        // Prevent from overflow
+        sim_step = 0;
+    }
+    pthread_mutex_unlock(&mutex);
+
     single_step_thread_ = boost::thread(boost::bind(&gazebo::physics::World::Step, gazebo::physics::get_world(), 1));
 }
 
 void waitForPreviousStep() {
-    if (!enable_sim_flag) {
-        return;
-    }
+    // do nothing
 }
 
 GazeboDeployerModelPlugin::GazeboDeployerModelPlugin() :
