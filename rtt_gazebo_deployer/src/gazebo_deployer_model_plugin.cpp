@@ -84,7 +84,7 @@ boost::mutex GazeboDeployerModelPlugin::deferred_load_mutex;
 ros::NodeHandle GazeboDeployerModelPlugin::nh("~");
 ros::ServiceServer GazeboDeployerModelPlugin::ss_enable_sim_;
 
-//static bool enable_sim_flag = false;
+// Start in running state
 static int max_sim_steps = 0;
 static int sim_step = 0;
 static bool block = false;
