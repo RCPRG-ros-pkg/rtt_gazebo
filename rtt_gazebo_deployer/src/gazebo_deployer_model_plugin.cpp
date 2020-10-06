@@ -202,6 +202,14 @@ void GazeboDeployerModelPlugin::loadThread()
 
   RTT::Logger::Instance()->in("GazeboDeployerModelPlugin::loadThread");
 
+
+  if (gazebo::physics::get_world()->Physics()->GetType() != "dart") {
+      Logger::log() << Logger::Error << "Only dart engine is supported" << Logger::endl;
+      _exit(14);
+      return;
+  }
+
+
   Logger::log() << Logger::Info << "Loading RTT Model Plugin..." << Logger::endl;
 
   std::string master_service_name;
@@ -241,8 +249,8 @@ void GazeboDeployerModelPlugin::loadThread()
     // Create the gazebo deployer
     default_deployer = new OCL::DeploymentComponent("gazebo");
     default_deployer->import("rtt_rosnode");
-    default_deployer->import("rtt_rosdeployment");
-    static_cast<RTT::TaskContext*>(default_deployer)->loadService("rosdeployment");
+    //default_deployer->import("rtt_rosdeployment");
+    //static_cast<RTT::TaskContext*>(default_deployer)->loadService("rosdeployment");
 
     // Attach the taskcontext server to this component
     taskcontext_server = RTT::corba::TaskContextServer::Create(default_deployer);
@@ -283,9 +291,9 @@ void GazeboDeployerModelPlugin::loadThread()
 // TODO: add master service name
     deployers[deployer_name_]->initializeSubsystem(master_service_name, master_service_subname);
     deployers[deployer_name_]->getDc()->connectPeers(default_deployer);
-    deployers[deployer_name_]->getDc()->import("rtt_rosnode");
-    deployers[deployer_name_]->getDc()->import("rtt_rosdeployment");
-    static_cast<RTT::TaskContext*>(deployers[deployer_name_]->getDc().get())->loadService("rosdeployment");
+    //deployers[deployer_name_]->getDc()->import("rtt_rosnode");
+    //deployers[deployer_name_]->getDc()->import("rtt_rosdeployment");
+    //static_cast<RTT::TaskContext*>(deployers[deployer_name_]->getDc().get())->loadService("rosdeployment");
     RTT::corba::TaskContextServer::Create(deployers[deployer_name_]->getDc().get());
   }
 
@@ -405,7 +413,7 @@ void GazeboDeployerModelPlugin::loadThread()
     }
 
     if(model_components_.empty()) {
-      Logger::log() << Logger::Error << "Could not load any RTT components!" << Logger::endl;
+      Logger::log() << Logger::Error << "Could not load any RTT model components!" << Logger::endl;
       gzerr << "Could not load any RTT components!" << std::endl;
       _exit(3);
       return;
