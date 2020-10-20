@@ -37,6 +37,8 @@
 /* Author: Jonathan Bohren
    Desc:   Gazebo plugin for running OROCOS RTT components */
 
+#include <array>
+
 // Boost
 #include <boost/bind.hpp>
 
@@ -89,6 +91,9 @@ static int max_sim_steps = 0;
 static int sim_step = 0;
 static bool block = false;
 
+static std::array<double, 10000 > intervals;
+int interval_idx = 0;
+
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 pthread_cond_t cond_is_running = PTHREAD_COND_INITIALIZER;
@@ -128,6 +133,24 @@ bool enable_sim(simulation_control_msgs::EnableSim::Request &req, simulation_con
 
 static boost::thread single_step_thread_;
 
+void worldStep() {
+  bool print_intervals = false;
+  ros::Time time1 = rtt_rosclock::rtt_wall_now();
+  gazebo::physics::get_world()->Step(1);
+  ros::Time time2 = rtt_rosclock::rtt_wall_now();
+  double interval = (time2-time1).toSec();
+  intervals[interval_idx] = interval;
+  ++interval_idx;
+  if (interval_idx < 0 || interval_idx >= intervals.size()) {
+    interval_idx = 0;
+    if (print_intervals) {
+      for (int i = 0; i < intervals.size(); ++i) {
+        std::cout << intervals[i] << std::endl;
+      }
+    }
+  }
+}
+
 void singleStep() {
     if (single_step_thread_.joinable()) {
         single_step_thread_.join();
@@ -149,7 +172,8 @@ void singleStep() {
     }
     pthread_mutex_unlock(&mutex);
 
-    single_step_thread_ = boost::thread(boost::bind(&gazebo::physics::World::Step, gazebo::physics::get_world(), 1));
+    //single_step_thread_ = boost::thread(boost::bind(&gazebo::physics::World::Step, gazebo::physics::get_world(), 1));
+    single_step_thread_ = boost::thread(worldStep);
 }
 
 void waitForPreviousStep() {
