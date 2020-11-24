@@ -229,10 +229,9 @@ void GazeboDeployerModelPlugin::loadThread()
 
   if (gazebo::physics::get_world()->Physics()->GetType() != "dart") {
       Logger::log() << Logger::Error << "Only dart engine is supported" << Logger::endl;
-      _exit(14);
-      return;
+      //_exit(14);
+      //return;
   }
-
 
   Logger::log() << Logger::Info << "Loading RTT Model Plugin..." << Logger::endl;
 
